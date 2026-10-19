@@ -1,0 +1,11 @@
+@import url('./visual/style.css');
+#tavern-runtime-suite{padding:10px;display:grid;gap:10px}
+#tavern-runtime-suite>summary{cursor:pointer;font-weight:600}
+#tavern-runtime-suite label{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#tavern-runtime-suite input[type=number]{width:90px}
+#tavern-runtime-suite button{min-height:36px;margin:3px}
+#tavern-runtime-suite output{display:block;white-space:pre-wrap;overflow-wrap:anywhere}
+#tavern-runtime-suite .trs-section{border-top:1px solid currentColor;padding-top:10px}
+#tavern-runtime-suite .trs-error{color:var(--SmartThemeQuoteColor,#efb7ad)}
+#tavern-runtime-suite .trs-record{margin:8px 0;padding:8px;border:1px solid currentColor}
+#tavern-runtime-suite .trs-record p{white-space:pre-wrap}

@@ -1,0 +1,15 @@
+{
+  "name": "sillytavern-runtime-suite",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs test/*.test.cjs",
+    "vendor": "node visual/tools/prepare-vendor.mjs --write"
+  },
+  "dependencies": {
+    "@lottiefiles/dotlottie-web": "0.81.0",
+    "@rive-app/webgl2": "2.44.2"
+  }
+}
