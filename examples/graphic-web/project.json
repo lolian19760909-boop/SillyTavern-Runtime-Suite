@@ -1,0 +1,45 @@
+{
+  "format": "tavern-visual-project",
+  "schema": 1,
+  "id": "graphic-web-example",
+  "version": "1",
+  "title": "独立图形作品 · 显现与消散",
+  "engine": {
+    "id": "web-bundle",
+    "version": "1"
+  },
+  "scene": {
+    "file": "entry.js",
+    "interactive": false,
+    "accent": [
+      0.3,
+      0.85,
+      0.88
+    ]
+  },
+  "inputs": [
+    {
+      "id": "progress",
+      "type": "number"
+    },
+    {
+      "id": "reveal",
+      "type": "trigger"
+    },
+    {
+      "id": "dissolve",
+      "type": "trigger"
+    }
+  ],
+  "events": [
+    "complete"
+  ],
+  "resources": [
+    {
+      "path": "entry.js",
+      "bytes": 4224,
+      "type": "text/javascript",
+      "sha256": "086838e755313095fea18b95cab22b63b1801973394162ce8c6e812e71af1849"
+    }
+  ]
+}
