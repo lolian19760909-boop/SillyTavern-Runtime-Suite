@@ -1,6 +1,7 @@
 import { createResources } from './resources.mjs';
+import { createPlayback } from './playback.mjs';
 
-export function createProjectRuntime({ resources = createResources } = {}) {
+export function createProjectRuntime({ resources = createResources, settings = () => ({}) } = {}) {
   const providers = new Map();
   const loaded = new Map();
   const sessions = new Set();
@@ -43,6 +44,7 @@ export function createProjectRuntime({ resources = createResources } = {}) {
     let failure = null;
     let cleanup = null;
     let capabilities = [];
+    let playback = null;
     const metadata = structuredClone(binding);
     function check() { controller.signal.throwIfAborted(); }
 
@@ -53,7 +55,7 @@ export function createProjectRuntime({ resources = createResources } = {}) {
       check();
       target.append(stage);
       handle = implementation.mount({
-        manifest: project.manifest, resources: scope, target: stage, signal: controller.signal,
+        manifest: project.manifest, resources: scope, target: stage, signal: controller.signal, quality: settings(),
         fail(error) {
           queueMicrotask(() => {
             if (controller.signal.aborted) return;
@@ -72,6 +74,7 @@ export function createProjectRuntime({ resources = createResources } = {}) {
       await handle.ready;
       check();
       capabilities = [...new Set(handle.capabilities ?? [])];
+      if (capabilities.includes('play') && capabilities.includes('pause')) playback = createPlayback({ target, handle, autoplay: project.manifest.scene.autoplay !== false, settings });
       state = 'ready';
       return session;
     }).catch(async error => {
@@ -83,7 +86,7 @@ export function createProjectRuntime({ resources = createResources } = {}) {
     ready.catch(() => {});
 
     function release() {
-      if (!cleanup) cleanup = Promise.resolve().then(() => handle?.dispose?.()).finally(() => {
+      if (!cleanup) cleanup = Promise.resolve().then(async () => { await playback?.dispose(); await handle?.dispose?.(); }).finally(() => {
         signal?.removeEventListener('abort', externalAbort);
         scope.dispose();
         stage.remove();
@@ -97,6 +100,7 @@ export function createProjectRuntime({ resources = createResources } = {}) {
       await ready;
       check();
       if (!capabilities.includes(name) || typeof handle[name] !== 'function') throw new Error(`此播放器不支持 ${name}。`);
+      if (playback && (name === 'play' || name === 'pause')) return playback[name]();
       return handle[name](...args);
     }
 
@@ -108,7 +112,8 @@ export function createProjectRuntime({ resources = createResources } = {}) {
       setSegment: (start, end) => command('setSegment', start, end),
       setInput: (id, value) => command('setInput', id, value),
       trigger: id => command('trigger', id),
-      diagnostics: () => ({ ...inspect(project), state, capabilities: [...capabilities], failure, resources: scope.diagnostics(), player: handle?.diagnostics?.() ?? null }),
+      diagnostics: () => ({ ...inspect(project), state, capabilities: [...capabilities], failure, resources: scope.diagnostics(), playback: playback?.diagnostics() ?? null, player: handle?.diagnostics?.() ?? null }),
+      refresh: () => playback?.refresh(),
       dispose() {
         if (state === 'disposed') return cleanup ?? Promise.resolve();
         state = 'disposed';
@@ -127,6 +132,7 @@ export function createProjectRuntime({ resources = createResources } = {}) {
   return Object.freeze({
     register, inspect, mount,
     closeAll: () => Promise.all([...sessions].map(session => session.dispose())),
+    refresh: () => Promise.all([...sessions].map(session => session.refresh())),
     providers: () => [...providers.values()].map(({ id, version, title }) => ({ id, version, title })),
     diagnostics: () => ({ disposed, sessions: [...sessions].map(session => session.diagnostics()), loadedProviders: loaded.size }),
     async dispose() {

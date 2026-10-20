@@ -59,14 +59,29 @@ export function createMotion({ settings = () => ({ enabled: true, reducedMotion:
     function rows(container, candidates = container.querySelectorAll('[data-motion-row]')) {
       if (!owns(container) || reduced()) return;
       const viewport = container.getBoundingClientRect();
-      let count = 0;
+      const visible = [];
       for (const row of candidates) {
         if (!container.contains(row)) continue;
         const rect = row.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0 || rect.bottom <= viewport.top || rect.top >= viewport.bottom) continue;
-        void play(row, graphic.row, { duration: graphic.rowDuration, delay: count * graphic.rowDelay, fill: 'backwards' });
-        if (++count === graphic.rowLimit) break;
+        visible.push(row);
+        if (visible.length === graphic.rowLimit) break;
       }
+      visible.forEach((row, count) => { void play(row, graphic.row, { duration: graphic.rowDuration, delay: count * graphic.rowDelay, fill: 'backwards' }); });
+    }
+    function layout(candidates, mutate, options = {}) {
+      const elements = [...new Set(candidates)].filter(owns);
+      const before = elements.map(element => element.getBoundingClientRect());
+      mutate(); // Author applies final DOM state once, synchronously.
+      const after = elements.map(element => ({ box: element.getBoundingClientRect(), transform: view.getComputedStyle(element).transform }));
+      return Promise.all(elements.map((element, i) => {
+        const a = before[i], b = after[i].box, end = after[i].transform === 'none' ? '' : after[i].transform;
+        if (!a.width || !a.height || !b.width || !b.height) return result('completed');
+        return play(element, [
+          { transformOrigin: '0 0', transform: `translate(${a.left-b.left}px,${a.top-b.top}px) scale(${a.width/b.width},${a.height/b.height}) ${end}` },
+          { transformOrigin: '0 0', transform: end || 'none' },
+        ], { duration: 240, ...options });
+      }));
     }
 
     function setOpen(element, open) {
@@ -123,7 +138,8 @@ export function createMotion({ settings = () => ({ enabled: true, reducedMotion:
     const scope = {
       open: element => setOpen(element, true),
       close: element => setOpen(element, false),
-      switchPage, rows, cancel, finish,
+      switchPage, rows, cancel, finish, layout,
+      animate: (element, frames, options = {}) => play(element, frames, { duration: 240, ...options }),
       diagnostics: () => ({ active: entries.size, panels: panels.size, disposed }),
       dispose() {
         if (disposed) return;
