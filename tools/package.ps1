@@ -3,8 +3,8 @@ $ErrorActionPreference = 'Stop'
 $sourceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $outputRoot = [IO.Path]::GetFullPath($OutDirectory)
 $metadata = Get-Content -LiteralPath (Join-Path $sourceRoot 'manifest.json') -Raw | ConvertFrom-Json
-$paths = @('manifest.json','index.js','style.css','README.md','ADAPTERS.md','LICENSE','NOTICE.md','CHANGELOG.md')
-foreach ($directory in @('context','runtime','visual')) {
+$paths = @('manifest.json','index.js','style.css','README.md','ADAPTERS.md','LICENSE','NOTICE.md','CHANGELOG.md','COMPATIBILITY.md','VISUAL-GUIDE.md')
+foreach ($directory in @('context','runtime','visual','examples')) {
     $paths += Get-ChildItem -LiteralPath (Join-Path $sourceRoot $directory) -Recurse -File | Where-Object { $_.FullName -notlike '*\tools\*' } | ForEach-Object { [IO.Path]::GetRelativePath($sourceRoot, $_.FullName) }
 }
 $records = @(foreach ($relative in ($paths | Sort-Object)) {
