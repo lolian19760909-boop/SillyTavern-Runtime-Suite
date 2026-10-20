@@ -13,3 +13,5 @@ When updating a runtime, update the fixed dependency, lockfile, vendored files, 
 For host behavior changes, check the actual extension entry with `node test/serve.mjs` and its browser page. Record what was checked. Real SillyTavern/TauriTavern, real model output, Unity exports, and Rive external assets require their respective environments.
 
 Before making a release, update the changelog and version together, run the checks, and create the installation archive with `tools/package.ps1`. The script verifies each archived file after writing it. Submit focused changes with the observed behavior, resulting behavior, and validation.
+
+Publish each delivered plugin version to the corresponding GitHub repository. Players install and update through their host's extension manager using the repository URL. Verify the published files and CI, and record the commit; a local ZIP alone is not a completed plugin release. Keep ZIP archives as offline backups.

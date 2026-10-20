@@ -1,6 +1,6 @@
 # 视觉项目格式与接口 1
 
-作品是独立目录，根目录放`project.json`，资源保留相对路径。此清单不执行脚本。导入会核对每个资源的字节数和SHA256，再保存到浏览器项目库；播放时只读取这份已导入内容。
+作品是独立目录，根目录放`project.json`，资源保留相对路径。清单描述作品元数据。导入会核对每个资源的字节数和SHA256，再保存到浏览器项目库；播放时只读取这份已导入内容。
 
 ## 生成清单
 
@@ -69,7 +69,7 @@ ID／版本只用英文字母、数字、点、短横线和下划线。资源路
 
 映射名称必须与Rive作品一致。运行情况中列出可见状态机和属性名称。Rive事件按其名称对应清单`events`，URL事件不会自动导航。
 
-外置素材用`scene.assets`把Rive报告的`uniqueFilename`映射到包内资源路径。代码已接图片、字体、音频解码，并在销毁时释放；目前实际验证用的是内嵌素材作品，外置Rive素材需要后续真实作品核对。没有映射时明确报错，不转向CDN。
+外置素材用`scene.assets`把Rive报告的`uniqueFilename`映射到包内资源路径。代码已接图片、字体、音频解码，并在销毁时释放；内嵌素材作品已完成验证；外置素材接入时逐项核对图片、字体与音频映射，缺失映射会显示具体错误。
 
 ## Lottie与dotLottie
 
@@ -77,7 +77,7 @@ ID／版本只用英文字母、数字、点、短横线和下划线。资源路
 
 外置图片用`scene.assets`映射作品内路径到包内文件。解析优先匹配完整路径，其次去掉前导`/`，最后匹配已明确登记的文件名。自动导入时同名外置素材会要求改用清单，避免选错。`.lottie`内置素材由原播放器解析。
 
-帧范围为0至`totalFrames - 1`，区间起点不能晚于终点。视觉效果是否受支持仍取决于此固定版dotLottie播放器，插件不把After Effects原始工程编译成Lottie。
+帧范围为0至`totalFrames - 1`，区间起点不能晚于终点。视觉效果使用固定版dotLottie播放器渲染；After Effects作品先导出为Lottie JSON或`.lottie`。
 
 ## 网页作品
 
@@ -99,13 +99,13 @@ project.onCommand(async (action, args) => {
 project.ready(['trigger', 'setInput']);
 ```
 
-`renderer`是作品自己的实现，内核不提供或替换美术。`project.asset(path)`返回当前容器内资源URL；`await project.bytes(path)`读取字节；`project.emit('complete', value)`发送声明事件；`project.signal`在关闭时中止。作品必须清理自己建立的计时器、WebGL对象和监听，SDK负责撤销其资源URL及移除iframe。
+`renderer`由作品提供，负责其场景与美术绘制。`project.asset(path)`返回当前容器内资源URL；`await project.bytes(path)`读取字节；`project.emit('complete', value)`发送声明事件；`project.signal`在关闭时中止。作品必须清理自己建立的计时器、WebGL对象和监听，SDK负责撤销其资源URL及移除iframe。
 
-WebGL2、Canvas、CSS、SVG以及打包好的Pixi／Three等网页代码均可在这个容器中使用；是否具备某项GPU能力由当前浏览器及作品判断。运行中的作品不能直接读取宿主页面、聊天或存档。关闭等待作品回应，3秒仍无回应会移除容器，并在该会话运行情况中记`forcedClose:true`。
+WebGL2、Canvas、CSS、SVG以及打包好的Pixi／Three等网页代码均可在这个容器中使用；是否具备某项GPU能力由当前浏览器及作品判断。作品使用独立页面运行，通过声明的输入和事件与角色卡交互。关闭等待作品回应，3秒仍无回应会移除容器，并在该会话运行情况中记`forcedClose:true`。
 
 ## Unity Web接口
 
-引擎为`unity-web@1`，这里的1是接入协议版本，Unity运行时代码由作品自己的导出包提供。当前接入范围是`createUnityInstance`格式、未压缩、单线程、自包含资源的Web导出；不编译Unity编辑器工程，不宣称已经通过真实Unity成品验证。
+引擎为`unity-web@1`，这里的1是接入协议版本，Unity运行时代码由作品自己的导出包提供。接入使用`createUnityInstance`格式、未压缩、单线程、自包含资源的Web导出。接口已实现，实际作品接入列在[动效路线图](../VISUAL-GUIDE.md#后续方向)。
 
 配置示例：
 
@@ -145,7 +145,7 @@ mergeInto(LibraryManager.library, {
 });
 ```
 
-关闭时等待`instance.Quit()`，采用同一隔离容器的清理期限。原始`.gz`／`.br`／`.unityweb`、多线程和独立StreamingAssets目录目前会明确拒绝，不能在缺少对应部署条件时显示“已支持”。导出时将Compression Format设为Disabled；其他Unity版本和特性等实际作品到位后追加验证。
+关闭时等待`instance.Quit()`，采用同一隔离容器的清理期限。导出时将Compression Format设为Disabled，使用单线程并将资源打入导出包。导入器会检查压缩格式、线程和StreamingAssets配置，提示需要调整的项目。
 
 ## 播放器接口
 

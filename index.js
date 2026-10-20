@@ -3,10 +3,12 @@ import { Compact, Requests } from './context/core.mjs';
 import { createBridge } from './context/bridge.mjs';
 import { createAuxiliary } from './context/auxiliary.mjs';
 import { createContextEngine } from './context/engine.mjs';
+import { createMemoryModes } from './context/memory-mode.mjs';
 
 const ID = 'tavern-runtime-suite';
 const host = () => globalThis.SillyTavern.getContext();
-const defaults = { context: true, visual: true, recentTurns: 6, maxCalls: 2 };
+const defaults = { context: true, visual: true, recentTurns: 6, maxCalls: 2, memoryMode: 'auto' };
+const memoryModes = createMemoryModes({ settings: () => settings() });
 const settings = () => ({ ...defaults, ...host().extensionSettings[ID] });
 let root, notice, contextView, visualView, contextModule, visualModule, publicAPI, contextAPI, eventSource, chatEvent, endEvent;
 const onHostEvent = () => { void refresh(); };
@@ -35,11 +37,19 @@ function renderContext() {
   const unit = contextModule?.current(), state = contextModule?.status();
   if (!unit) { element('p', state?.error || '上下文模块已关闭。', contextView); return; }
   const bridgeState = unit.bridge.status();
+  const memory = bridgeState.memory;
+  element('p', memory.mode === 'database' ? `数据库模式：${memory.provider?.title || '等待数据库'}。数据库负责历史与召回，套件保留原聊天，不重复摘要。` : '套件摘要模式：按来源整理较早对话。', contextView);
+  if (memory.provider) element('p', `当前数据库可读表格 ${memory.provider.tables ?? '—'} 张、数据 ${memory.provider.rows ?? '—'} 行。该计数不代表历史已全部填表。`, contextView);
   if (bridgeState.mode === 'card') {
-    element('p', '当前卡已接入专用记忆适配。请在卡内记忆／压缩面板管理摘要；使用同一套插件压缩核心。', contextView);
+    element('p', memory.mode === 'database' ? '当前卡保留自身的视角筛选与数据库召回。记忆记录在卡内面板管理。' : '当前卡已接入专用记忆适配。请在卡内记忆／压缩面板管理摘要；使用同一套插件压缩核心。', contextView);
+    if (bridgeState.error || memory.error) element('output', bridgeState.error?.message || memory.error, contextView).className = 'trs-error';
     return;
   }
   const value = unit.engine.status();
+  if (memory.mode === 'database') {
+    if (bridgeState.error || memory.error) element('output', bridgeState.error?.message || memory.error, contextView).className = 'trs-error';
+    return;
+  }
   element('p', value.available ? `当前聊天：自动压缩${value.enabled ? '已开启' : '已关闭'}。较早对话整理后使用摘要，原聊天保留。` : '请打开普通单角色聊天并使用 Chat Completion 连接。配套卡由自己的适配器接管，群聊尚未接通。', contextView);
   if (!value.available) return;
   button(value.enabled ? '关闭本聊天自动压缩' : '开启本聊天自动压缩', contextView, () => unit.engine.setEnabled(!value.enabled));
@@ -86,6 +96,17 @@ function mountSettings() {
       host().extensionSettings[ID] = { ...settings(), [key]: value }; host().saveSettingsDebounced();
     }); });
   }
+  const modeRow = element('label', undefined, root);
+  element('span', '记忆处理', modeRow);
+  const mode = element('select', undefined, modeRow);
+  for (const [value, title] of [['auto', '自动：检测到数据库时交给数据库'], ['summary', '套件摘要'], ['database', '数据库模式']]) {
+    const option = element('option', title, mode); option.value = value;
+  }
+  mode.value = settings().memoryMode;
+  mode.addEventListener('change', () => { void action(async () => {
+    if (contextModule?.current()?.bridge.status().session) { mode.value = settings().memoryMode; throw new Error('请等本轮回复结束后再切换记忆模式。'); }
+    host().extensionSettings[ID] = { ...settings(), memoryMode: mode.value }; host().saveSettingsDebounced();
+  }); });
   element('p', '上述参数用于普通聊天；接入专用记忆的卡片由卡内面板控制具体规则。', root);
   button('刷新上下文记录', root, refresh);
   contextView = element('section', undefined, root); contextView.className = 'trs-section';
@@ -105,7 +126,7 @@ export function onActivate() {
     if (globalThis.CxxContextBridge) throw new Error('请先停用旧的独立上下文桥，再启用套件上下文模块。');
     let bridge;
     const engine = createContextEngine({ context: host, bridge: () => bridge, settings });
-    bridge = createBridge({ context: host, auxiliary: createAuxiliary({ context: host }), report, fallback: () => engine.available() ? engine.client : null });
+    bridge = createBridge({ context: host, auxiliary: createAuxiliary({ context: host }), report, memoryModes, fallback: () => engine.available() ? engine.client : null, worldInfo: () => import('/scripts/world-info.js') });
     globalThis.CxxContextBridge = bridge;
     return { bridge, engine, async dispose() { bridge.destroy(); engine.destroy(); if (globalThis.CxxContextBridge === bridge) delete globalThis.CxxContextBridge; } };
   });
@@ -116,8 +137,8 @@ export function onActivate() {
     return { dispose: visual.clean };
   });
   mountSettings();
-  contextAPI = Object.freeze({ api: 1, core: Object.freeze({ Compact, Requests }), status: () => contextModule?.current()?.engine.status() || { enabled: false }, bridge: () => contextModule?.current()?.bridge });
-  publicAPI = Object.freeze({ api: 1, version: '0.1.0', status: () => ({ context: contextModule.status(), visual: visualModule.status() }) });
+  contextAPI = Object.freeze({ api: 1, core: Object.freeze({ Compact, Requests }), memory: memoryModes.status, registerDatabase: memoryModes.register, status: () => contextModule?.current()?.engine.status() || { enabled: false }, bridge: () => contextModule?.current()?.bridge });
+  publicAPI = Object.freeze({ api: 1, version: '0.2.0', status: () => ({ context: contextModule.status(), visual: visualModule.status(), memory: memoryModes.status() }) });
   globalThis.TavernContext = contextAPI; globalThis.TavernRuntimeSuite = publicAPI;
   globalThis.TavernRuntimeSuite_intercept = TavernRuntimeSuite_intercept;
   eventSource = host().eventSource; chatEvent = host().eventTypes.CHAT_CHANGED; endEvent = host().eventTypes.GENERATION_ENDED;

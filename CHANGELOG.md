@@ -1,11 +1,32 @@
-# Changelog
+# 更新日志
+
+## 0.2.0
+
+- 新增自动、套件摘要、数据库三种记忆模式，内置 shujuku 公开 API 适配。
+- 每轮固定记忆模式，专用角色卡可保留自己的视角筛选。
+- 新增原生消息作品容器、同源页面客户端和 WebGL2 着色器播放器。
+- 提供原创 GPU 雨幕示例，支持像素倍率、帧率上限和帧间隔诊断。
+- 统一离屏、后台及减少动态的播放策略，保留手动暂停。
+- 增加 WAAPI 动画、FLIP 布局过渡及列表批量布局读取。
+- 重写安装与开发文档，支持从 GitHub 仓库直接安装和更新。
+
+## 0.1.2
+
+- 首次发送预留预设、人物资料、扩展提示、前缀与世界书额度，设置改变后重新计算。
+- 普通聊天与角色卡适配共享预算入口，最终提示核对实际长度与近期消息。
+- 宿主裁剪历史后，按实际保留文本修正固定提示估算。
+
+## 0.1.1
+
+- 人物视角筛选保留宿主处理后的消息副本和附件字段。
+- 增加投影指纹，提示处理改变时重新核对旧摘要。
+- 摘要放在保留历史之前，参与世界书扫描，主请求组装后释放注入。
+- 后续辅助请求与主请求的摘要事务分别处理。
 
 ## 0.1.0
 
-- Unified context compaction and visual projects in one installable SillyTavern UI extension, with independent module switches.
-- Added ordinary single-character chat compaction without requiring Tavern Helper, MVU or a card database.
-- Moved the reusable compaction and auxiliary-request core into the extension; card-specific viewpoint, memory and save adapters remain supported.
-- Preserved fixed Rive, dotLottie, webpage-project and Unity-interface players, the existing project library and C motion recipe.
-- Added standalone tests, synthetic browser checks, MIT licensing and third-party notices.
-
-Real ST/TT installation and model acceptance are still performed by the author. Unity export playback and Rive external-resource projects retain their documented evidence gaps; Spine remains unintegrated.
+- 将上下文管理与视觉作品合并为一个酒馆扩展，两个模块独立开关。
+- 提供普通单角色聊天摘要与专用角色卡适配接口。
+- 将通用压缩和辅助请求实现集中到扩展，角色卡持有自己的视角与保存规则。
+- 接入 Rive、dotLottie、网页播放器和 Unity 接口，保留作品库与页面过渡。
+- 提供独立测试、浏览器检查页、MIT 许可与第三方声明。

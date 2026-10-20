@@ -1,0 +1,11 @@
+{
+  "format": "tavern-visual-project",
+  "schema": 1,
+  "id": "neon-rain",
+  "version": "1",
+  "title": "霓虹雨幕 · GPU场景",
+  "engine": { "id": "shader-webgl2", "version": "1" },
+  "scene": { "file": "rain.frag", "autoplay": true },
+  "inputs": [{ "id": "intensity", "type": "number", "default": 0.7 }],
+  "files": ["rain.frag"]
+}

@@ -1,0 +1,30 @@
+{
+  "format": "tavern-visual-project",
+  "schema": 1,
+  "id": "neon-rain",
+  "version": "1",
+  "title": "霓虹雨幕 · GPU场景",
+  "engine": {
+    "id": "shader-webgl2",
+    "version": "1"
+  },
+  "scene": {
+    "file": "rain.frag",
+    "autoplay": true
+  },
+  "inputs": [
+    {
+      "id": "intensity",
+      "type": "number",
+      "default": 0.7
+    }
+  ],
+  "resources": [
+    {
+      "path": "rain.frag",
+      "bytes": 781,
+      "sha256": "f17501cd4345687f31a049f1f44f57909ae7a7f9c9f7862def2ca48f65487922",
+      "type": "application/octet-stream"
+    }
+  ]
+}

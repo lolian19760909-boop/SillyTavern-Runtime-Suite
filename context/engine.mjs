@@ -20,7 +20,6 @@ export function createContextEngine({ context, bridge, settings = () => ({}), re
     },
   };
   let compact, round = null, lastRun = null, lastFixed = null, error = '', destroyed = false;
-  const modelKey = () => JSON.stringify(context().chatCompletionSettings);
   const busy = () => !!round || !!compact?.status().busy;
   const assertIdle = () => { if (busy()) throw new Error('请等当前回复结束后再调整上下文。'); };
   function createPolicy() {
@@ -29,25 +28,36 @@ export function createContextEngine({ context, bridge, settings = () => ({}), re
       store: adapter.store, requests, countTokens, settings: settings(),
       project: async request => {
         const rows = await adapter.project(request.rows), host = context();
+        const reserve = await bridge().fixedBudget(request);
+        if (round?.id !== request.id) throw new Error('本轮整理已停止。');
+        round.fixedBudget = reserve;
         return {
           rows, nativeRows: request.rows, actorId: 'chat', contextSize: host.chatCompletionSettings.openai_max_context,
           outputTokens: host.chatCompletionSettings.openai_max_tokens, sessionId: request.id,
-          fixedTokens: lastFixed?.key === modelKey() ? lastFixed.tokens : 0,
+          fixedTokens: Math.max(reserve.tokens, lastFixed?.key === reserve.key ? lastFixed.tokens : 0),
         };
       },
     });
   }
   const client = {
+    memoryModes: ['summary', 'database'],
     get scope() { return adapter.scope(); },
-    async prepare() {
+    async prepare(request) {
       error = ''; round = null;
+      if (request?.memory?.mode === 'database') return;
       if (adapter.store.read().enabled !== false) await adapter.ensureSources();
     },
-    async message({ kind }) {
+    async message({ kind, memory }) {
+      if (memory?.mode === 'database') return;
       if (kind === 'user' && adapter.available() && adapter.store.read().enabled !== false) await adapter.ensureSources();
     },
     async before(request) {
       if (destroyed) throw new Error('上下文模块已关闭。');
+      if (request.memory?.mode === 'database') {
+        round = null;
+        lastRun = { mode: 'database', provider: request.memory.provider?.id, calls: 0, notes: ['历史与表格由数据库处理；套件本轮不创建或注入摘要。'] };
+        return { rows: request.rows };
+      }
       if (adapter.store.read().enabled === false) return { rows: request.rows };
       compact = createPolicy();
       try {
@@ -66,7 +76,8 @@ export function createContextEngine({ context, bridge, settings = () => ({}), re
           current.markers.push({ begin, end, role: row.is_user ? 'user' : 'assistant', content: row.mes });
           row.mes = `${begin}\n${row.mes}\n${end}`;
         });
-        lastRun = { ...compact.status().lastRun, estimateScope: lastFixed?.key === modelKey() ? 'history-plus-previous-fixed' : 'history-only' };
+        const { key, ...fixedBudget } = current.fixedBudget;
+        lastRun = { ...compact.status().lastRun, fixedBudget, estimateScope: 'history-plus-current-config-reserve' };
         return result;
       } catch (failure) { error = failure.message; throw failure; }
     },
@@ -97,9 +108,12 @@ export function createContextEngine({ context, bridge, settings = () => ({}), re
       if (!Number.isFinite(value) || value < 0) throw new Error('完整提示长度暂时无法估算。');
       const host = context(), budget = Compact.budget({ contextSize: host.chatCompletionSettings.openai_max_context, responseTokens: host.chatCompletionSettings.openai_max_tokens, settings: settings() });
       lastRun = { ...lastRun, finalInputEstimate: Math.ceil(value), budget, tokenSource: 'host-estimate' };
-      lastFixed = { key: modelKey(), tokens: Math.max(0, Math.ceil(value - current.historyTokens - current.summaryTokens)) };
+      const history = present.length === current.markers.length ? current.historyTokens : await countTokens(JSON.stringify(present.map(({ role, content }) => ({ role, content }))));
+      if (round !== current) throw new Error('本轮发送已经变化。');
+      lastFixed = { key: current.fixedBudget?.key, tokens: Math.max(0, Math.ceil(value - history - current.summaryTokens)) };
       if (anchors !== 1 || present.length !== current.markers.length) throw new Error('宿主裁掉或改写了需要保留的对话，本次已停止发送。');
       if (value > budget.input) throw new Error('完整提示超过预留输入预算，请重新发送以使用更新后的固定提示估算。');
+      return true;
     },
     finish() { round = null; requests.cancel(); },
   };

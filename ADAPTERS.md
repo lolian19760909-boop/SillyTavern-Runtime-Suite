@@ -43,3 +43,6 @@ Card iframe adapters should use their existing host message bridge to request mo
 ## Suite lifecycle
 
 `window.TavernRuntimeSuite.status()` reports wanted and active states for context and visual modules. Startup failures remain visible. Pending module loads are released if disabled before completion; shutdown waits for disposal before reuse. Native interception is published as the manifest's global `TavernRuntimeSuite_intercept` function. Old standalone plugins must be disabled before enabling the corresponding suite module.
+
+
+0.2.0的数据库模式契约见[COMPATIBILITY.md](COMPATIBILITY.md)，原生HTML和同源iframe接入见[VISUAL-GUIDE.md](VISUAL-GUIDE.md)。旧API 1继续兼容；新增能力采用可检测的方法与memoryModes声明。

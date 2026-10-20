@@ -28,9 +28,10 @@ http.createServer(async (request, response) => {
       response.writeHead(404).end(); return;
     }
     const relative = pathname.startsWith(mount + '/') ? pathname.slice(mount.length) : pathname;
+    if (pathname === '/scripts/world-info.js') { response.writeHead(200, { 'Content-Type': 'text/javascript' }).end('export const world_info_budget=25; export const world_info_budget_cap=0;'); return; }
     const target = pathname === '/scripts/openai.js' ? path.join(root, 'test/backend.mjs') : path.resolve(root, '.' + relative);
     if (!target.startsWith(root + path.sep)) { response.writeHead(403).end(); return; }
     const data = await fs.readFile(target);
     response.writeHead(200, { 'Content-Type': `${types[path.extname(target)] || 'application/octet-stream'}; charset=utf-8`, 'Cache-Control': 'no-store' }).end(data);
   } catch (failure) { response.writeHead(500, { 'Content-Type': 'text/plain' }).end(failure.message); }
-}).listen(8873, '127.0.0.1', () => console.log('http://127.0.0.1:8873' + mount + '/test/browser.html'));
+}).listen(Number(process.env.TRS_TEST_PORT || 8873), '127.0.0.1', () => console.log('http://127.0.0.1:' + (process.env.TRS_TEST_PORT || 8873) + mount + '/test/browser.html'));

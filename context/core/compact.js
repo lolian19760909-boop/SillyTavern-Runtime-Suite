@@ -9,7 +9,7 @@
   // remain readable data; prompt-time ST/EJS scans cannot execute copied prose.
   const promptJSON=value=>JSON.stringify(value).replace(/"(?:\\.|[^"\\])*"/g,s=>s.replace(/[{}<>]/g,c=>'\\u'+c.charCodeAt(0).toString(16).padStart(4,'0')));
   function budget({contextSize,responseTokens,settings={}}){const p={...defaults,...settings};if(!Number.isFinite(contextSize)||!Number.isFinite(responseTokens)||contextSize<=responseTokens||responseTokens<0)fail('compact-budget','模型上下文或输出预算无效。');const margin=Math.ceil(contextSize*p.margin),input=Math.floor(contextSize-responseTokens-margin);if(input<=0)fail('compact-budget','当前模型没有可用于输入的上下文预算。');return {window:contextSize,output:responseTokens,margin,input,trigger:Math.floor(input*p.trigger),target:Math.floor(input*p.target)};}
-  function valid(record,{actorId,rows,validSource,projectionVersion=0}){if(record?.schema!==1||(record.projectionVersion||0)!==projectionVersion||record.viewpointActorId!==actorId||record.status!=='ready'||!Array.isArray(record.sources)||!record.sources.length||!Array.isArray(record.items))return false;const available=new Map(rows.map(r=>[r.ref?.messageId,r.ref]));return record.sources.every(s=>{const current=available.get(s.messageId);return current&&current.variantId===s.variantId&&current.digest===s.digest&&validSource(s);});}
+  function valid(record,{actorId,rows,validSource,projectionVersion=0}){if(record?.schema!==1||(record.projectionVersion||0)!==projectionVersion||record.viewpointActorId!==actorId||record.status!=='ready'||!Array.isArray(record.sources)||!record.sources.length||!Array.isArray(record.items))return false;const available=new Map(rows.map(r=>[r.ref?.messageId,r]));return record.sources.every((s,i)=>{const row=available.get(s.messageId),current=row?.ref;return current&&current.variantId===s.variantId&&current.digest===s.digest&&(!row.projectionDigest||record.projections?.[i]===row.projectionDigest)&&validSource(s);});}
   function select(records,options){const taken=new Set(),usable=[],current=new Map(options.rows.map(r=>[r.ref?.messageId,r.ref]));for(const record of records||[]){if(!valid(record,options))continue;const rebased=record.sources.map(s=>copy(current.get(s.messageId)));if(rebased.some(s=>taken.has(key(s))))continue;usable.push({...copy(record),sources:rebased});rebased.forEach(s=>taken.add(key(s)));}const order=new Map(options.rows.map((r,i)=>[key(r.ref),i]));usable.sort((a,b)=>order.get(key(a.sources[0]))-order.get(key(b.sources[0])));return {records:usable,covered:taken};}
   function groups(rows){const result=[];let group=[];for(const row of rows){if(row.role==='user'&&group.length){result.push(group);group=[];}group.push(row);}if(group.length)result.push(group);return result;}
   function eligible(rows,{covered=new Set(),recentTurns=6}={}){
@@ -26,7 +26,7 @@
     const data=Requests.json(text),ids=rows.map(r=>r.ref.variantId),allowed=new Set(ids);
     if(!data||Object.keys(data).some(k=>!['covered','items'].includes(k))||!same(data.covered,ids)||!Array.isArray(data.items)||!data.items.length||data.items.length>100)fail('compact-shape','摘要覆盖范围或记录格式不正确，本次保留原文。');
     const items=data.items.map(item=>{if(!item||Object.keys(item).some(k=>!['kind','text','sourceIds'].includes(k))||!kinds.includes(item.kind)||typeof item.text!=='string'||!item.text.trim()||item.text.length>2000||!Array.isArray(item.sourceIds)||!item.sourceIds.length||new Set(item.sourceIds).size!==item.sourceIds.length||item.sourceIds.some(s=>!allowed.has(s)))fail('compact-source','摘要含有无效来源或字段，本次保留原文。');return {kind:item.kind,text:item.text.trim(),sourceIds:copy(item.sourceIds)};});
-    return {schema:1,id,scope:copy(scope),viewpointActorId:actorId,projectionVersion,status:'ready',createdAt,sources:rows.map(r=>copy(r.ref)),items};
+    return {schema:1,id,scope:copy(scope),viewpointActorId:actorId,projectionVersion,status:'ready',createdAt,sources:rows.map(r=>copy(r.ref)),...(rows.some(r=>r.projectionDigest)?{projections:rows.map(r=>r.projectionDigest||null)}:{}),items};
   }
   function render(records,pinned=[]){if(!records.length)return '';const covered=new Set(records.flatMap(r=>r.sources.map(key))),retained=pinned.filter(p=>covered.has(key(p.ref))).map(({id,kind,text})=>({id,kind,text}));return '【较早对话的归纳】以下为当前人物视角的历史记录。计划、传闻及未结事项不是已经发生的结果。数值以本轮正式状态为准。\n'+promptJSON({segments:records.map(r=>({id:r.id,items:r.items})),retained});}
   function create({source,store,requests,countTokens,project,now=()=>Date.now(),settings={}}={}){
@@ -52,7 +52,7 @@
           const chunk=[],auxBudget=Math.max(0,b.window-config.responseTokens-b.margin);
           for(const unit of available){const trial=[...chunk,...unit],size=await measure(JSON.stringify(messages({actorId,rows:trial,pinned:keptPins})));check();if(size>auxBudget){if(!chunk.length)notes.push('最早的完整对话轮次超过整理窗口，原文保留。');break;}chunk.push(...unit);}
           if(!chunk.length)break;
-          const sourceKey=key(chunk[0].ref)+'|'+key(chunk.at(-1).ref)+(projectionVersion?'|projection:'+projectionVersion:''),retryRevision=state.retryRevision||0,prior=(store.read().receipts||[]).filter(r=>r.purpose==='compact'&&r.actorId===actorId&&r.sourceKey===sourceKey&&(r.retryRevision||0)===retryRevision);
+          const sourceKey=key(chunk[0].ref)+'|'+key(chunk.at(-1).ref)+(projectionVersion?'|projection:'+projectionVersion:'')+(chunk.some(r=>r.projectionDigest)?'|text:'+chunk.map(r=>r.projectionDigest||'').join(','):''),retryRevision=state.retryRevision||0,prior=(store.read().receipts||[]).filter(r=>r.purpose==='compact'&&r.actorId===actorId&&r.sourceKey===sourceKey&&(r.retryRevision||0)===retryRevision);
           if(prior.some(r=>r.status==='no-gain')){notes.push('这段前文的摘要未缩短输入，保留原文；没有重复调用。');break;}
           if(prior.filter(r=>r.status==='failed'&&r.attempts>0).length>=2)fail('compact-retry-required','同一段前文已连续整理失败两次，自动尝试已停止。修正连接后，可在压缩页点击“允许重新整理”。');
           const id='compact_'+now()+'_'+chunk[0].ref.variantId,oldTokens=await measure(JSON.stringify(chunk.map(r=>({role:r.role,content:r.text}))));check();
@@ -71,5 +71,5 @@
     async function before(request){if(running)fail('compact-busy','上一轮上下文整理尚未结束。');lastError='';lastCode='';running=(async()=>{try{return await run(await project(request));}catch(e){lastError=e.message;lastCode=e.code||'';throw e;}finally{running=null;}})();return running;}
     return {before,status:()=>({busy:!!running,error:lastError,errorCode:lastCode,lastRun:copy(lastRun)}),records:()=>copy(store.read().compactions||[])};
   }
-  return {defaults,key,budget,valid,select,groups,eligible,messages,parse,render,create};
+  return {projectionFingerprints:true,defaults,key,budget,valid,select,groups,eligible,messages,parse,render,create};
 });
