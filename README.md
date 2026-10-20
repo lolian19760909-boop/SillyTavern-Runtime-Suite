@@ -1,61 +1,101 @@
 # Tavern Runtime Suite
 
-A free, MIT-licensed SillyTavern extension for conversation compaction and visual projects. Install once; enable context and visuals independently.
+为 SillyTavern 角色卡提供上下文管理和交互视觉的通用扩展。
 
-一个免费的酒馆扩展，提供通用上下文压缩和动画作品运行环境。两个模块独立开关，玩家安装成品即可使用。
+长对话可以交给套件摘要，也可以接入数据库的记忆流程；角色卡可以播放 GPU 场景、矢量动画和网页作品，并为面板、列表与对白添加平滑过渡。上下文与视觉模块独立开关，按需使用。
 
-## 安装
+## 安装与更新
 
-发布仓库后，在酒馆“扩展 → 安装扩展”填写本仓库地址。也可解压发行版中的 `tavern-runtime-suite` 文件夹，放进 ST 的 `public/scripts/extensions/third-party/` 或用户数据目录的 `extensions/`；TT使用数据目录的`default-user/extensions/`。刷新后在扩展设置展开“Tavern Runtime Suite · 上下文与视觉”。
+1. 打开酒馆的 **扩展 → 安装扩展**，填写仓库地址：
 
-从旧独立版迁移时，先停用“Cyber2051 上下文桥”和“Tavern Visual”旧扩展，再启用套件。已有角色卡、聊天、作品库和视觉设置保留。不要同时启用旧独立插件和套件的相同模块。
+   ```text
+   https://github.com/lolian19760909-boop/SillyTavern-Runtime-Suite
+   ```
 
-玩家无需安装 Node.js、运行 npm、编译或重新制作角色卡。安装包已带固定版本的播放器文件，只有用到对应作品时才加载播放器。
+2. 安装完成后刷新页面，展开 **Tavern Runtime Suite · 上下文与视觉**。
+3. 启用需要的模块。使用摘要时，选择已经配置好的 Chat Completion 模型连接。
 
-## 上下文模块
+更新时，在 **管理扩展** 中检查更新、更新本套件，再刷新页面。当前版本为 **0.2.0**。TauriTavern 使用其扩展管理入口填写同一仓库地址。
 
-普通单角色聊天可直接使用，选择酒馆当前的 Chat Completion 连接即可。较早对话接近输入阈值时，会调用同一连接归纳旧段；近期完整轮次和当前输入保留。默认保留最近六轮，每轮最多整理两次，可在设置修改。
+运行文件与播放器随仓库提供，安装后即可使用。ZIP 为离线备用分发方式。
 
-原聊天不会被摘要覆盖。摘要和消息来源记录保存于当前聊天；保存并读回一致后，摘要才替代本次发送中的旧段。编辑前文、切换回复或删除原文后，不再采用失效摘要。图片、工具调用和系统消息不作为普通旧段删减。
+从旧版 Cyber2051 上下文桥或 Tavern Visual 迁移时，先停用对应旧扩展，再启用本套件。已有聊天、作品库与视觉设置继续保留。
 
-设置中可以查看和停用摘要、重试保存或允许重新整理。摘要没有缩短输入时不会反复调用；同一段连续失败两次后等待明确重试。估算使用宿主分词接口；模型返回的实际用量另行记录。第一次整理前尚无完整固定提示用量时，最终提示仍会重新核对，必要时停止发送并提示重试。
+## 上下文管理
 
-摘要整理使用当前模型连接，会产生额外模型调用。只需动画时，可以关闭上下文模块。群聊尚未接入默认压缩；非 Chat Completion 连接会显示不支持状态。
+### 选择记忆模式
 
-使用人物知情、记忆数据库或自定义数值的角色卡，可以接入专用适配；适配接管该卡的上下文，不会与默认压缩重复运行。2051的知情范围和数值规则由其卡片适配持有。
-
-## 动画与视觉模块
-
-展开“Tavern Visual · 视觉运行环境”，选择文件或文件夹导入作品，再预览或由角色卡挂载。
-
-| 播放器 | 当前范围 |
+| 模式 | 适合的用法 |
 |---|---|
-| Rive WebGL2 2.44.2 | `.riv`、画板／状态机、输入与事件、数据绑定；真实外置素材作品仍待验证 |
-| dotLottie Canvas／WebGL 0.81.0 | Lottie JSON、`.lottie`、外置图片、定位和区间播放 |
-| 网页作品 | 单个JavaScript入口与资源，在独立iframe内运行，通过私有通道通信 |
-| Unity Web | 未压缩、单线程、自包含Web导出的接入接口；尚无真实Unity作品播放验收 |
+| 自动 | 默认选择。检测到 shujuku 数据库公开接口时使用数据库模式，其余情况使用套件摘要 |
+| 套件摘要 | 使用当前模型整理较早对话，为近期完整轮次留出上下文空间 |
+| 数据库 | 由数据库负责填表、长期记忆、召回与提示注入，套件让出摘要处理 |
 
-Spine尚未集成。第三方编辑器和作品继续遵守原厂许可。
+普通单角色 Chat Completion 聊天可直接启用。带有人物视角、专用记忆或独立存储规则的角色卡，可通过[适配接口](ADAPTERS.md)接入自己的处理流程。
 
-作品与插件分开，插件不携带角色卡立绘、背景或页面素材。`examples/graphic-web`是自制WebGL2技术作品；可单独导入其目录查看显现／消散。项目清单、播放器接口和完整示例见[项目格式](visual/PROJECT-FORMAT.md)。
+### 摘要如何工作
 
-作品库保存在当前浏览器站点的IndexedDB，清除站点数据会清除库；原始作品文件应自行保留。切换聊天关闭播放会话，已导入作品继续保存。`TavernMotion`提供页面主动接入的开合／切页辅助；它不会自动改写所有卡片已有动画。
+发送前，套件估算预设、人物资料、扩展提示与世界书占用，按剩余空间整理较早对话。默认保留最近六轮，每轮最多整理两次；这些参数可以在设置中调整。
 
-## 开发者
+原聊天完整保留。摘要随当前聊天保存，确认存储后用于本次发送；编辑前文、切换回复分支或删除消息时，套件重新核对来源。图片、工具调用和系统消息按专门规则保留。
 
-[接口与适配](ADAPTERS.md)说明通用核心、卡片接入和兼容接口。源码MIT，第三方许可见[NOTICE](NOTICE.md)。
+摘要调用使用当前模型连接，计入该连接的用量。设置面板提供摘要查看、停用、重试与状态说明。
+
+### 配合数据库使用
+
+安装 [shujuku 数据库](https://github.com/AlbusKen/shujuku) 后，选择“自动”或“数据库”。在数据库自身设置中配置模板、自动填表、召回及模型连接。
+
+数据库模式保留数据库原有生成流程，历史长度由数据库与宿主的设置决定。已有套件摘要继续保存，切回套件摘要时按消息来源重新核对。详见[数据库兼容说明](COMPATIBILITY.md)。
+
+## 动画与视觉
+
+视觉模块为角色卡提供专用播放器和页面动画接口。卡作者可以制作雨幕、光效、溶解、交互矢量角色、动画插画与独立网页场景，也可以为现有界面添加开合、切页和布局过渡。
+
+| 类型 | 用途 |
+|---|---|
+| GPU 着色器 | 程序化雨幕、噪声、光效、溶解等场景 |
+| Rive WebGL2 | 矢量动画、交互状态机、输入与事件 |
+| Lottie / dotLottie | 动画插画、图标与界面装饰，支持 Canvas 和 WebGL |
+| 网页作品 | 自包含的 Canvas、WebGL、SVG 或 HTML 交互场景 |
+| 页面过渡 | 基于 WAAPI 的开合、切页、列表入场与布局动画 |
+
+在视觉设置中导入作品文件夹，即可预览；角色卡通过作品 ID 调用同一作品。仓库附带两个原创示例：
+
+- [`examples/neon-rain`](examples/neon-rain)：可调强度的 GPU 雨幕。
+- [`examples/graphic-web`](examples/graphic-web)：网页场景的显现与消散。
+
+播放器在离屏、后台及“减少动态”设置下自动调整播放，保留玩家手动暂停状态。GPU 场景提供帧率上限与像素倍率设置，便于在画质和设备负载之间选择。
+
+作品库保存在当前站点的浏览器存储中。请保留原始作品文件，以便清理站点数据或更换设备后重新导入。
+
+## 给角色卡作者
+
+原生消息可以用一个 HTML 容器挂载已导入的作品：
+
+```html
+<div data-tavern-visual="neon-rain@1" style="height:240px"></div>
+```
+
+带脚本的同源页面可使用 `card-client.mjs` 管理作品、输入、事件与页面生命周期。面板和列表通过 `TavernMotion` 接入布局过渡。插件负责播放与资源释放，角色卡负责业务状态和交互结果。
+
+- [动效接入指南](VISUAL-GUIDE.md)：消息容器、页面客户端、过渡与性能设置。
+- [作品格式](visual/PROJECT-FORMAT.md)：资源清单、播放器参数、输入与事件。
+- [适配接口](ADAPTERS.md)：上下文适配、存储与生命周期。
+- [数据库兼容](COMPATIBILITY.md)：shujuku 接入与其他数据库的注册方式。
+
+## 环境与开发
+
+最低声明版本为 SillyTavern 1.18.0。摘要模块使用 Chat Completion；GPU 着色器与 Rive WebGL2 使用浏览器的 WebGL2 能力。
+
+开发使用 Node.js 24：
 
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund
 npm test
 ```
 
-`npm run vendor`从锁定依赖重新生成播放器；提交的`visual/vendor`已可直接运行。`node test/serve.mjs`打开合成数据检查页；它使用实际扩展入口和播放器、固定文本模型，不接玩家数据或真实模型。
+[贡献说明](CONTRIBUTING.md)介绍源码结构、测试和发布流程；版本变化见[更新日志](CHANGELOG.md)。反馈问题请附宿主版本、套件版本、复现步骤及设置面板中的错误信息。
 
-维护者在PowerShell 7运行`tools/package.ps1 -OutDirectory <输出目录>`查看成品清单，加`-Write`生成安装ZIP并逐文件读回。已有ZIP不覆盖。安装包排除开发依赖、测试及技术样例；GitHub源码保留可复现测试。
+## 许可
 
-## 验证范围
-
-本地已检查通用压缩、来源失效、保存重试、辅助请求隔离、模块反向开关、播放器及清理；组件浏览器完成普通卡发送链、网页作品和独立开关。真实ST／TT、真实模型与长期使用由作者验收。最低声明版本为ST 1.18.0；宿主能力仍需满足运行接口，不能据版本号单独推定全部行为。
-
-设计参考：[Codex compaction](https://github.com/openai/codex/blob/main/codex-rs/core/src/compact.rs)、[ZCode compaction policy](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/core/src/compact/policy.ts)、[SillyTavern扩展接口](https://docs.sillytavern.app/for-contributors/writing-extensions/)。
+项目源码采用 [MIT](LICENSE) 许可。Rive、dotLottie 等第三方组件的版本与许可见 [NOTICE](NOTICE.md)；作品素材遵循各自作者的授权。
