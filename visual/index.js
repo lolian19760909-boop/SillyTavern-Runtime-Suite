@@ -4,11 +4,12 @@ import { createProjectStore } from './project/store.mjs';
 import { importProjectFiles } from './project/import.mjs';
 import { mountManager } from './ui/manager.mjs';
 import { bindProjectSlots } from './runtime/declarative.mjs';
+import { createMessageRenderer } from './runtime/messages.mjs';
 
 const ID = 'cxx-motion';
 let engine = null;
 let settingsNode = null;
-let projects, store, manager, visualAPI, eventSource, chatEvent, activation, slots;
+let projects, store, manager, visualAPI, eventSource, chatEvent, activation, slots, messages;
 let settingsHost = null;
 export function setSettingsHost(value) { settingsHost = value; }
 
@@ -20,6 +21,7 @@ function save(patch) {
   host.extensionSettings[ID] = { ...host.extensionSettings[ID], ...patch };
   host.saveSettingsDebounced();
   engine.refresh();
+  messages?.applySettings();
   void projects.refresh();
 }
 
@@ -45,8 +47,16 @@ function mountSettings() {
   }
   const note = document.createElement('p');
   note.className = 'text_muted';
-  note.textContent = '页面动效只作用于明确接入的页面；视觉作品使用独立播放器。';
+  note.textContent = '配套卡自动使用自己的消息显示。其他角色可在下方单独启用；聊天原文、编辑、重抽和存档仍由酒馆管理。';
   settingsNode.append(note);
+  const messageRow = document.createElement('label'), messageToggle = document.createElement('input'), messageText = document.createElement('span');
+  messageRow.className = 'checkbox_label'; messageToggle.type = 'checkbox'; messageText.textContent = '为当前角色启用通用消息渲染';
+  const avatar = () => context().characters?.[context().characterId]?.avatar;
+  const syncToggle = () => { messageToggle.disabled = !avatar(); messageToggle.checked = (read().messageCards || []).includes(avatar()); };
+  syncToggle();
+  messageToggle.addEventListener('change', () => { const id = avatar(); if (!id) return; const selected = new Set(read().messageCards || []); messageToggle.checked ? selected.add(id) : selected.delete(id); save({ messageCards: [...selected] }); });
+  settingsNode.addEventListener('toggle', syncToggle);
+  messageRow.append(messageToggle, messageText); settingsNode.append(messageRow);
   for (const [key, title, values] of [['maxDpr', 'GPU场景像素倍率上限', [1, 1.5, 2, 3]], ['maxFps', 'GPU场景帧率上限', [30, 60, 90, 120]]]) {
     const row = document.createElement('label'), text = document.createElement('span'), select = document.createElement('select');
     text.textContent = title;
@@ -81,11 +91,19 @@ export function onActivate() {
     },
   });
   store = createProjectStore();
+  messages = createMessageRenderer({ document, context, settings: read,
+    sanitize: value => { if (!globalThis.DOMPurify?.sanitize) throw new Error('当前宿主缺少HTML清理接口。'); return globalThis.DOMPurify.sanitize(value); },
+    markdown: value => { if (!globalThis.showdown?.Converter) throw new Error('当前宿主缺少Markdown转换接口。'); return new globalThis.showdown.Converter({ tables: true, strikethrough: true, ghCodeBlocks: true }).makeHtml(value); },
+  });
+  messages.register({ id: 'ordinary-card', priority: -100,
+    matches: ({ character, row }) => !row.is_system && (read().messageCards || []).includes(character),
+    render: ({ raw, row, floor, format }) => format('host', raw, { floor, name: row.name, isUser: row.is_user }),
+  });
   activation = new AbortController();
   const library = store;
   const signal = activation.signal;
   visualAPI = Object.freeze({
-    api: 1, version: '0.2.0', mount: projects.mount, register: projects.register,
+    api: 1, version: '0.3.0', mount: projects.mount, register: projects.register, messages,
     inspect: projects.inspect, diagnostics: projects.diagnostics, providers: projects.providers,
     importFiles: async selection => {
       const project = await importProjectFiles(selection, { signal });
@@ -100,6 +118,7 @@ export function onActivate() {
   });
   globalThis.TavernMotion = engine;
   globalThis.TavernVisual = visualAPI;
+  globalThis.dispatchEvent(new CustomEvent('trs-visual-ready'));
   const chat = document.getElementById('chat');
   if (chat) slots = bindProjectSlots(chat, { getProject: visualAPI.getProject, mount: projects.mount });
   eventSource = host.eventSource;
@@ -122,10 +141,12 @@ export async function clean() {
   eventSource = chatEvent = null;
   globalThis.removeEventListener('pagehide', clean);
   const closing = [slots?.dispose(), manager?.dispose(), projects?.dispose(), store?.close()];
+  messages?.dispose(); messages = null;
   slots = null;
   manager = projects = store = null;
   if (globalThis.TavernVisual === visualAPI) delete globalThis.TavernVisual;
   visualAPI = null;
+  globalThis.dispatchEvent(new CustomEvent('trs-visual-stopped'));
   engine?.dispose();
   engine = null;
   settingsNode?.remove();
