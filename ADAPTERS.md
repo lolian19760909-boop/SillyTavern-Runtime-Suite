@@ -18,7 +18,7 @@ Scope is `{character: avatarFile, chat: chatId, group: null}`. `before` must ret
 
 `prepare` runs before native history assembly; `message` receives source-floor events; `worldinfo` may exclude explicit `{world,uid}` entries; `final` handles the tracked main request after native prompt assembly; `finish` releases a generation. Other auxiliary requests must remain untouched. The default engine uses an anchor to distinguish its own final prompt from unrelated requests.
 
-2051 retains its source records, viewpoint projection, memory preparation and MVU save adapter. Its small card facades resolve `parent.TavernContext.core`; the common compaction and request implementations are no longer embedded in its new card build. Existing saved summaries retain their original namespace and schema. The ordinary engine uses separate `chatMetadata.tavern_runtime_context` and top-level message `tavern_runtime_source` records. Never copy these records across unrelated conversations without explicit provenance.
+Card adapters own their source records, viewpoint projection and persistence. They can access shared compaction and request factories through `parent.TavernContext.core`. The ordinary engine stores summaries in `chatMetadata.tavern_runtime_context` and source identities in top-level message `tavern_runtime_source` records. Keep each record associated with its original conversation.
 
 ## Visual projects
 
@@ -38,7 +38,7 @@ await session.dispose();
 
 Card iframe adapters should use their existing host message bridge to request mounting. The container owner controls when and where a project plays. The suite does not award numeric rewards or infer game actions from a visual event. See [project format](visual/PROJECT-FORMAT.md) for resource hashes, engine versions and player methods.
 
-`window.TavernMotion.api === 1` retains the scoped DOM motion API. This is a separate helper from project players, using the existing C recipe. Mount only on owned UI roots and dispose the scope when that root leaves the page.
+`window.TavernMotion.api === 1` provides the scoped DOM motion API for page transitions. Mount it on the page's own UI roots and dispose the scope when that root leaves the page.
 
 ## Suite lifecycle
 

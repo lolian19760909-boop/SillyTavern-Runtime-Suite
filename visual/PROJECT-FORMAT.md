@@ -69,7 +69,7 @@ ID／版本只用英文字母、数字、点、短横线和下划线。资源路
 
 映射名称必须与Rive作品一致。运行情况中列出可见状态机和属性名称。Rive事件按其名称对应清单`events`，URL事件不会自动导航。
 
-外置素材用`scene.assets`把Rive报告的`uniqueFilename`映射到包内资源路径。代码已接图片、字体、音频解码，并在销毁时释放；内嵌素材作品已完成验证；外置素材接入时逐项核对图片、字体与音频映射，缺失映射会显示具体错误。
+外置素材用`scene.assets`把Rive报告的`uniqueFilename`映射到包内资源路径，支持图片、字体和音频。缺失映射会显示具体错误；作品销毁时释放相应资源。
 
 ## Lottie与dotLottie
 
@@ -105,7 +105,7 @@ WebGL2、Canvas、CSS、SVG以及打包好的Pixi／Three等网页代码均可�
 
 ## Unity Web接口
 
-引擎为`unity-web@1`，这里的1是接入协议版本，Unity运行时代码由作品自己的导出包提供。接入使用`createUnityInstance`格式、未压缩、单线程、自包含资源的Web导出。接口已实现，实际作品接入列在[动效路线图](../VISUAL-GUIDE.md#后续方向)。
+引擎为`unity-web@1`，这里的1是接入协议版本，Unity运行时代码由作品自己的导出包提供。接入使用`createUnityInstance`格式、未压缩、单线程、自包含资源的Web导出。
 
 配置示例：
 
@@ -160,7 +160,7 @@ TavernVisual.register({
 
 模块导出同步`mount({manifest,resources,target,signal,emit,fail})`，返回`{ready,capabilities,dispose,...commands}`。`ready`是加载Promise；`dispose`须可重复且等待清理；`resources`提供`blob(path)`、`bytes(path)`、`url(path)`；清理后核心撤销URL。加载失败拒绝`ready`，已播放后的失败调用`fail(error)`；只有清单中声明的`emit(name,value)`会到卡片。
 
-播放器自己管理解码器、GPU、音频、后台暂停与缩放。一个引擎版本的模块按需共享，各作品保持独立会话。Spine未来沿此接口接入；当前没有登记、下载或捆绑Spine运行库。
+播放器自己管理解码器、GPU、音频、后台暂停与缩放。一个引擎版本的模块按需共享，各作品保持独立会话。
 
 ## 接口依据
 
