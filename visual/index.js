@@ -103,7 +103,7 @@ export function onActivate() {
   const library = store;
   const signal = activation.signal;
   visualAPI = Object.freeze({
-    api: 1, version: '0.3.0', mount: projects.mount, register: projects.register, messages,
+    api: 1, version: '0.3.2', mount: projects.mount, register: projects.register, messages,
     inspect: projects.inspect, diagnostics: projects.diagnostics, providers: projects.providers,
     importFiles: async selection => {
       const project = await importProjectFiles(selection, { signal });
