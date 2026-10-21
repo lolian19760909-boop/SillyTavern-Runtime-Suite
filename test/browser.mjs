@@ -52,8 +52,16 @@ checkButton.addEventListener('click', async () => {
     const files = [new File([JSON.stringify(manifest)], 'project.json', { type: 'application/json' })];
     for (const resource of manifest.resources) files.push(new File([await (await fetch('../examples/graphic-web/' + resource.path)).arrayBuffer()], resource.path, { type: resource.type }));
     const project = await globalThis.TavernVisual.importFiles(files);
+    const stage = document.getElementById('stage'); stage.style.colorScheme = 'dark';
     const playback = globalThis.TavernVisual.mount(project, document.getElementById('stage'));
     await playback.ready; await playback.trigger('reveal');
+    const projectFrame = stage.querySelector('iframe');
+    assert(projectFrame.style.colorScheme === 'dark', '网页作品初始配色未跟随容器');
+    for (const scheme of ['light', 'dark']) {
+      stage.style.colorScheme = scheme;
+      await until(() => projectFrame.style.colorScheme === scheme);
+    }
+    results.push({ name: '网页作品初始透明配色与播放中的深浅切换', pass: true });
     assert(globalThis.TavernVisual.diagnostics().sessions.length === 1, '网页作品未运行');
     contextToggle.click(); await until(() => !globalThis.TavernRuntimeSuite.status().context.active);
     assert(globalThis.TavernRuntimeSuite.status().visual.active && globalThis.TavernVisual.diagnostics().sessions.length === 1, '上下文开关中断作品');
