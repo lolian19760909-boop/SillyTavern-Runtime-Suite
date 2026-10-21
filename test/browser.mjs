@@ -1,3 +1,4 @@
+import { checkMessages } from './messages.browser.mjs';
 const events = new Map(), prompts = new Map(), results = [], errors = [];
 const status = document.getElementById('status'), report = document.getElementById('report'), checkButton = document.getElementById('check');
 const names = ['GENERATION_AFTER_COMMANDS', 'MESSAGE_SENT', 'MESSAGE_RECEIVED', 'WORLDINFO_ENTRIES_LOADED', 'CHAT_COMPLETION_PROMPT_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED', 'CHAT_CHANGED'];
@@ -42,6 +43,7 @@ checkButton.addEventListener('click', async () => {
     assert(JSON.stringify(c.chat.map(row => row.mes)) === JSON.stringify(original), '原文被改变');
     assert(globalThis.TavernContext.status().records.length === 1 && c.chatMetadata.keep.value === 1, '摘要或未知字段未保存');
     results.push({ name: '普通卡实际发送链、保存读回、最终预算和原文', pass: true, kept: rows.length });
+    results.push(await checkMessages({ context: c, assert, until }));
     const labels = [...document.querySelectorAll('#tavern-runtime-suite>label')], contextToggle = labels[0].querySelector('input'), visualToggle = labels[1].querySelector('input');
     visualToggle.click(); await until(() => !globalThis.TavernRuntimeSuite.status().visual.active);
     assert(globalThis.TavernRuntimeSuite.status().context.active && !globalThis.TavernVisual, '动画开关影响上下文或未清理');
