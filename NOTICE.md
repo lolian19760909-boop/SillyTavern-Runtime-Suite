@@ -12,4 +12,4 @@ Rive and dotLottie build inputs are locked in `package-lock.json`; bundled JS/WA
 
 Unity and Spine are third-party authoring/runtime products. This repository provides a Unity Web adapter interface; it contains neither a Unity export nor a Spine runtime. Their licenses remain separate from this project's MIT license.
 
-The included graphic-web example is a standalone, project-authored technical example. Character-card artwork, worldbooks and player conversations are not part of this repository.
+The included graphic-web and neon-rain examples are original works licensed under MIT.

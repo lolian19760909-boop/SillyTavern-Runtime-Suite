@@ -1,6 +1,6 @@
 # Contributing
 
-Use Node.js 24 and run `npm ci --ignore-scripts --no-audit --no-fund`, then `npm test`. The tests are self-contained and use synthetic data. GitHub Actions runs the same checks; a local pass is separate from a completed CI run.
+Use Node.js 24 and run `npm ci --ignore-scripts --no-audit --no-fund`, then `npm test`. The tests use synthetic data. GitHub Actions runs the same checks.
 
 Keep `manifest.json` and `index.js` at the repository root so SillyTavern can install the repository directly. Do not commit `node_modules`, player chats, credentials, character-card assets, or generated release archives.
 
@@ -10,8 +10,10 @@ Visual providers live in `visual/providers`. Projects use the format in `visual/
 
 When updating a runtime, update the fixed dependency, lockfile, vendored files, and license notices together. Use `npm run vendor` to reproduce the vendored players. Keep third-party notices and licenses intact.
 
-For host behavior changes, check the actual extension entry with `node test/serve.mjs` and its browser page. Record what was checked. Real SillyTavern/TauriTavern, real model output, Unity exports, and Rive external assets require their respective environments.
+For host behavior changes, run `node test/serve.mjs` and open its browser check page, then test the changed behavior in the target host. For player changes, import a work using the affected engine and assets.
 
 Before making a release, update the changelog and version together, run the checks, and create the installation archive with `tools/package.ps1`. The script verifies each archived file after writing it. Submit focused changes with the observed behavior, resulting behavior, and validation.
 
-Publish each delivered plugin version to the corresponding GitHub repository. Players install and update through their host's extension manager using the repository URL. Verify the published files and CI, and record the commit; a local ZIP alone is not a completed plugin release. Keep ZIP archives as offline backups.
+Players install and update through their host's extension manager using the repository URL. Publish the version to GitHub and provide a ZIP for offline installation.
+
+Write release notes for users: describe features, fixes and upgrade steps. Use generic examples in integration guides. Review the release description, repository documentation and archived documentation together before publishing; keep development plans and test reports in their respective records.

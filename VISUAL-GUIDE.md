@@ -58,12 +58,3 @@ await card.motion.animate(document.querySelector('#dialogue'),
 `project.source.json`选择`{"id":"shader-webgl2","version":"1"}`，`scene.file`指向GLSL ES 3.00片元着色器。内置`u_time`为秒，`u_resolution`为实际画布像素；声明的number/boolean输入映射为同名uniform，亦可通过`name`指定名称。`seek`在该播放器中使用秒。用`visual/tools/create-project.mjs <目录> --write`生成资源指纹后导入文件夹。
 
 shader在专用画布中绘制。已有CG的溶解效果可以使用网页作品组合已导入素材。
-
-## 后续方向
-
-- 图片纹理输入：在着色器项目中直接使用已导入图片。
-- Worker绘制：把适合的场景计算与绘制调度移到工作线程。
-- Unity作品：以实际Web导出物完善播放和交互接入。
-- Spine播放器：接入具有相应运行授权的作品。
-
-每项方向以可导入的示例作品和对应性能数据推进。
