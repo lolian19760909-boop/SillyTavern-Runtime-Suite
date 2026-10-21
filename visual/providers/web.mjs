@@ -1,6 +1,7 @@
 const commands = ['play', 'pause', 'seek', 'setSegment', 'setInput', 'trigger'];
 
-function boot(token) {
+function boot(token, colorScheme) {
+  document.documentElement.style.colorScheme = colorScheme;
   let port, project, handler;
   let closing = false;
   const assets = new Map();
@@ -27,6 +28,7 @@ function boot(token) {
       emit(name, value) { if (!closing && project.events?.includes(name)) send({ type: 'event', name, value }); },
     });
     port.onmessage = async event => {
+      if (event.data?.type === 'environment') { document.documentElement.style.colorScheme = event.data.colorScheme; return; }
       const { id, action, args } = event.data ?? {};
       if (closing) return;
       if (action === 'dispose') closing = true;
@@ -63,6 +65,18 @@ export function mount({ manifest, resources, target, signal, emit, fail }) {
   const ready = new Promise((resolve, reject) => { resolveReady = resolve; rejectReady = reject; });
   let initialized = false, loaded = false, disposed = false, closePromise;
   let forcedClose = false, nextId = 0;
+  let colorScheme = view.getComputedStyle(target).colorScheme;
+  frame.style.colorScheme = colorScheme;
+  const syncScheme = () => {
+    const next = view.getComputedStyle(target).colorScheme;
+    if (next === colorScheme) return;
+    colorScheme = next; frame.style.colorScheme = next;
+    if (initialized && !disposed) channel.port1.postMessage({ type: 'environment', colorScheme });
+  };
+  const themeObserver = new view.MutationObserver(syncScheme);
+  for (let node = target; node; node = node.parentElement || node.getRootNode()?.host) themeObserver.observe(node, { attributes: true });
+  const schemeMedia = view.matchMedia('(prefers-color-scheme: dark)');
+  schemeMedia.addEventListener('change', syncScheme);
   const pending = new Map();
   const capabilities = [];
   const allowedInputs = new Map((manifest.inputs ?? []).map(input => [input.id, input]));
@@ -75,6 +89,7 @@ export function mount({ manifest, resources, target, signal, emit, fail }) {
     initialized = true;
     view.removeEventListener('message', hello);
     frame.contentWindow.postMessage({ token, type: 'initialize', manifest, assets: manifest.resources.map(resource => [resource.path, resources.blob(resource.path)]) }, '*', [channel.port2]);
+    channel.port1.postMessage({ type: 'environment', colorScheme });
   }
   channel.port1.onmessage = event => {
     const data = event.data;
@@ -98,7 +113,7 @@ export function mount({ manifest, resources, target, signal, emit, fail }) {
   };
   view.addEventListener('message', hello);
   signal.addEventListener('abort', abort, { once: true });
-  frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,#stage{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}</style></head><body><div id="stage"></div><script>(${boot.toString()})(${JSON.stringify(token)})<\/script></body></html>`;
+  frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,#stage{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}</style></head><body><div id="stage"></div><script>(${boot.toString()})(${JSON.stringify(token)},${JSON.stringify(colorScheme)})<\/script></body></html>`;
   target.append(frame);
 
   function request(action, args = [], timeout = 10000) {
@@ -117,6 +132,7 @@ export function mount({ manifest, resources, target, signal, emit, fail }) {
   function dispose() {
     if (closePromise) return closePromise;
     disposed = true;
+    themeObserver.disconnect(); schemeMedia.removeEventListener('change', syncScheme);
     rejectReady(abortError());
     signal.removeEventListener('abort', abort);
     view.removeEventListener('message', hello);
