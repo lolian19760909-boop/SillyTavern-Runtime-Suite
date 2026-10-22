@@ -35,6 +35,8 @@ export function createBridge({context,report=()=>{},auxiliary=null,fallback=()=>
     try{s.memory=memoryModes?.resolve()||{mode:'summary'};if(s.memory.mode==='database'&&!client.memoryModes?.includes('database'))throw Error('当前卡的上下文适配器需要更新后才能使用数据库模式。');await client.prepare?.({id:s.id,type,scope:s.scope,memory:s.memory,context:context()});check(s);}catch(e){s.error=failure(e);}
   }
   async function message(kind,floor,type){
+    // Nonstream ST finishes a continuation as appendFinal, streaming as continue.
+    if(kind==='assistant'&&session?.type==='continue'&&(type==='appendFinal'||type==='append'))type='continue';
     if(kind==='assistant'&&!types.has(type))return;
     if(kind==='assistant'&&types.has(type)){clear();if(session)session.finalized=true;}
     if(!active())return;const owner=client,s=session,key=JSON.stringify([kind,floor,type||'normal']);
