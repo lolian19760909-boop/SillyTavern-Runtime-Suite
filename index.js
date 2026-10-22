@@ -138,7 +138,7 @@ export function onActivate() {
   });
   mountSettings();
   contextAPI = Object.freeze({ api: 1, core: Object.freeze({ Compact, Requests }), memory: memoryModes.status, registerDatabase: memoryModes.register, status: () => contextModule?.current()?.engine.status() || { enabled: false }, bridge: () => contextModule?.current()?.bridge });
-  publicAPI = Object.freeze({ api: 1, version: '0.3.2', status: () => ({ context: contextModule.status(), visual: visualModule.status(), memory: memoryModes.status() }) });
+  publicAPI = Object.freeze({ api: 1, version: '0.3.3', status: () => ({ context: contextModule.status(), visual: visualModule.status(), memory: memoryModes.status() }) });
   globalThis.TavernContext = contextAPI; globalThis.TavernRuntimeSuite = publicAPI;
   globalThis.TavernRuntimeSuite_intercept = TavernRuntimeSuite_intercept;
   eventSource = host().eventSource; chatEvent = host().eventTypes.CHAT_CHANGED; endEvent = host().eventTypes.GENERATION_ENDED;
