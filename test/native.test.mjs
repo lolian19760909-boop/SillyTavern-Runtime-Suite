@@ -70,7 +70,7 @@ test('new input receives a source before native history is copied; images and sy
 test('editing or swiping an ancestor invalidates summaries while an appended unregistered reply retains prior sources', async () => {
   const f = fixture();
   try {
-    const rows = await f.prepare(); await f.bridge.intercept(rows, 20000, () => assert.fail(), 'normal'); await f.emit('GENERATION_ENDED');
+    const rows = await f.prepare(); await f.bridge.intercept(rows, 20000, () => assert.fail(), 'normal'); await f.emit('MESSAGE_RECEIVED',9,'normal');await f.emit('GENERATION_ENDED');
     f.c.chat.push({ mes: '新回复', name: '角色', is_user: false }); await f.engine.refresh(); assert(f.engine.status().records.every(row => row.status === 'ready'));
     f.c.chat[0].mes += '修改'; await f.engine.refresh(); assert(f.engine.status().records.every(row => row.status === 'unverified'));
   } finally { f.destroy(); }
@@ -94,7 +94,7 @@ test('repeated malformed responses stop automatic attempts and exclusion keeps o
     for (let i = 0; i < 3; i++) { const rows = await f.prepare(); let aborted = false; await f.bridge.intercept(rows, 20000, () => { aborted = true; }, 'normal'); assert(aborted); await f.emit('GENERATION_STOPPED'); }
     assert.equal(f.calls(), 2);
     f.malformed(false); await f.engine.allowRetry();
-    const rows = await f.prepare(); await f.bridge.intercept(rows, 20000, () => assert.fail(), 'normal'); await f.emit('GENERATION_ENDED');
+    const rows = await f.prepare(); await f.bridge.intercept(rows, 20000, () => assert.fail(), 'normal'); await f.emit('MESSAGE_RECEIVED',9,'normal');await f.emit('GENERATION_ENDED');
     await f.engine.exclude(f.engine.status().records[0].id);
     const next = await f.prepare(); await f.bridge.intercept(next, 20000, () => assert.fail(), 'normal'); assert.equal(next.length, 10); assert.equal(f.calls(), 3);
   } finally { f.destroy(); }
