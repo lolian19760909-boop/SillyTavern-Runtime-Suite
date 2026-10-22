@@ -53,6 +53,6 @@ test('普通卡数据库模式保留原文、世界书与辅助请求，不调�
   await listeners.get('CHAT_COMPLETION_PROMPT_READY')(payload);
   assert.equal(lore.chatLore[0].content,'table record'); assert.equal(payload.chat[0].content,'database fill request');
   assert([...prompts.values()].every(value => !value));
-  await listeners.get('GENERATION_ENDED')(); assert.equal(bridge.status().memory.mode,'summary');
+  await listeners.get('MESSAGE_RECEIVED')(1,'normal');await listeners.get('GENERATION_ENDED')(); assert.equal(bridge.status().memory.mode,'summary');
   bridge.destroy(); engine.destroy(); assert.equal(listeners.size,0);
 });

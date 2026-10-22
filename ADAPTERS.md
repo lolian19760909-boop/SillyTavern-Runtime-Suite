@@ -12,7 +12,9 @@ The suite owns generic compaction, model transport, player sessions and resource
 
 ## Host bridge and card adapters
 
-For compatibility, the active host bridge is also exposed as `window.CxxContextBridge` with protocol 1. Register one adapter through `connect({scope,prepare,message,before,worldinfo,final,finish})`; retain and call the returned disconnect function when the card unloads or changes chat.
+For compatibility, the active host bridge is also exposed as `window.CxxContextBridge` with protocol 1. Register one adapter through `connect({scope,isAuxiliary,prepare,message,before,worldinfo,final,pause,finish})`; retain and call the returned disconnect function when the card unloads or changes chat.
+
+`isAuxiliary(request)` is optional and returns true for a card-owned variable-analysis request that must not start a narrative round. `pause` cancels policy work on stop while retaining a receipt for a partial streamed reply. The bridge retains the round through a host ENDED event until MESSAGE_RECEIVED registration succeeds; `status().receiptLifecycle === 1` identifies this behavior.
 
 Scope is `{character: avatarFile, chat: chatId, group: null}`. `before` must return an ordered subset of the original native row objects plus an optional prompt. Do not return invented rows or mutate stored chat text. A registered adapter has priority over the ordinary-chat engine. Different adapters cannot own the same active conversation simultaneously.
 

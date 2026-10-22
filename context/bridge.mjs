@@ -12,6 +12,13 @@ export function createBridge({context,report=()=>{},auxiliary=null,fallback=()=>
   function check(s){if(destroyed||session!==s||client!==s.client||!matches(s.scope,scope()))throw Error('生成期间故事或人物服务已变化，请重新发送。');}
   function failure(error){lastError={code:error?.code||'context-bridge',message:error?.message||String(error)};return lastError;}
   async function end(reason){for(const r of requests)r.abort(Error('辅助请求已停止：'+reason));const old=session;session=null;clear();if(old)try{await old.client.finish?.({id:old.id,reason});}catch(e){failure(e);}}
+  async function generationEnded(reason){
+    // Streaming ST unlocks its UI (and emits ENDED) before MESSAGE_RECEIVED.
+    // Keep the generation receipt until its message has actually been indexed.
+    const s=session;if(!s||s.error&&!s.intercepted)return end(reason);s.endReason=reason;clear();
+    if(reason==='stopped'){for(const r of requests)r.abort(Error('辅助请求已停止：'+reason));try{await s.client.pause?.({id:s.id,reason});}catch(e){failure(e);}}
+    if(session===s&&s.received)await end(reason);
+  }
   async function request(value){
     if(!active()||!matches(value?.scope,scope())||typeof auxiliary!=='function')throw Error('当前故事没有可用的上下文辅助请求服务。');
     if(value.sessionId!==undefined&&value.sessionId!==session?.id)throw Error('辅助请求对应的回复已结束。');
@@ -22,15 +29,21 @@ export function createBridge({context,report=()=>{},auxiliary=null,fallback=()=>
   }
   async function prepare(type,options,dryRun){
     if(dryRun||!types.has(type)||!active())return;
+    if(client.isAuxiliary?.({type,options,context:context()}))return;
     await end('superseded');if(!active())return;
-    const s=session={id:++serial,client,scope:scope(),type,error:null,intercepted:false};lastError=null;
+    const s=session={id:++serial,client,scope:scope(),type,error:null,intercepted:false,received:false,deliveries:new Map()};lastError=null;
     try{s.memory=memoryModes?.resolve()||{mode:'summary'};if(s.memory.mode==='database'&&!client.memoryModes?.includes('database'))throw Error('当前卡的上下文适配器需要更新后才能使用数据库模式。');await client.prepare?.({id:s.id,type,scope:s.scope,memory:s.memory,context:context()});check(s);}catch(e){s.error=failure(e);}
   }
   async function message(kind,floor,type){
+    if(kind==='assistant'&&!types.has(type))return;
     if(kind==='assistant'&&types.has(type)){clear();if(session)session.finalized=true;}
-    if(!active())return;const owner=client;
-    try{await owner.message?.({kind,floor,type,scope:scope(),context:context(),memory:session?.memory,session:session?.id??null});}
-    catch(e){const error=failure(e);if(session?.client===owner)session.error=error;else report(error.message);}
+    if(!active())return;const owner=client,s=session,key=JSON.stringify([kind,floor,type||'normal']);
+    if(s?.deliveries.has(key))return s.deliveries.get(key);
+    const work=(async()=>{try{
+      await owner.message?.({kind,floor,type,scope:scope(),context:context(),memory:s?.memory,session:s?.id??null});
+      if(kind==='assistant'&&session===s&&s){s.received=true;if(s.endReason)await end(s.endReason);}
+    }catch(e){const error=failure(e);s?.deliveries.delete(key);if(session===s&&s)s.error=error;else report(error.message);}})();
+    s?.deliveries.set(key,work);return work;
   }
   async function intercept(rows,contextSize,abort,type){
     if(!types.has(type)||!active())return;
@@ -57,13 +70,13 @@ export function createBridge({context,report=()=>{},auxiliary=null,fallback=()=>
     }catch(e){s.error=failure(e);clear();context().stopGeneration?.();throw e;}
   }
   async function final(payload){const s=session;if(!s?.intercepted||s.finalized)return;try{check(s);if(s.error)throw Object.assign(Error(s.error.message),{code:s.error.code});const handled=await s.client.final?.({id:s.id,scope:s.scope,payload});check(s);if(handled===true){s.finalized=true;clear();}}catch(e){s.error=failure(e);clear();context().stopGeneration?.();throw e;}}
-  for(const [name,fn]of [['GENERATION_AFTER_COMMANDS',prepare],['MESSAGE_SENT',(floor)=>message('user',floor)],['MESSAGE_RECEIVED',(floor,type)=>message('assistant',floor,type)],['WORLDINFO_ENTRIES_LOADED',worldinfo],['CHAT_COMPLETION_PROMPT_READY',final],['GENERATION_ENDED',()=>end('ended')],['GENERATION_STOPPED',()=>end('stopped')],['CHAT_CHANGED',()=>end('chat-changed')]]){
+  for(const [name,fn]of [['GENERATION_AFTER_COMMANDS',prepare],['MESSAGE_SENT',(floor)=>message('user',floor)],['MESSAGE_RECEIVED',(floor,type)=>message('assistant',floor,type)],['WORLDINFO_ENTRIES_LOADED',worldinfo],['CHAT_COMPLETION_PROMPT_READY',final],['GENERATION_ENDED',()=>generationEnded('ended')],['GENERATION_STOPPED',()=>generationEnded('stopped')],['CHAT_CHANGED',()=>end('chat-changed')]]){
     if(events?.[name]){ctx.eventSource.on(events[name],fn);bindings.push([events[name],fn]);}
   }
   return {protocol:1,capabilities,intercept,request,
     async fixedBudget(request){return estimateFixed({context,type:request.type,contextSize:request.contextSize,worldInfo:await worldInfo()});},
     connect(value){if(destroyed)throw Error('上下文桥已卸载。');if(!capabilities().ready)throw Error('宿主缺少必要的上下文事件。');if(!matches(value?.scope,scope())||typeof value?.before!=='function')throw Error('卡内上下文服务或故事绑定无效。');if(registered&&matches(registered.scope,scope()))throw Error('当前已有上下文服务，请先解除旧绑定。');if(session)void end('adapter-changed');registered=value;client=value;return()=>{if(registered===value){void end('disconnected');registered=null;client=null;}};},
-    status:()=>({protocol:1,connected:!!registered,active:!!active(),mode:client===registered&&registered?'card':'native',memory:session?.memory||memoryModes?.status()||{mode:'summary'},session:session?{id:session.id,type:session.type,intercepted:session.intercepted}:null,error:lastError}),
+    status:()=>({protocol:1,receiptLifecycle:1,connected:!!registered,active:!!active(),mode:client===registered&&registered?'card':'native',memory:session?.memory||memoryModes?.status()||{mode:'summary'},session:session?{id:session.id,type:session.type,intercepted:session.intercepted,awaitingMessage:!!session.endReason&&!session.received}:null,error:lastError}),
     destroy(){if(destroyed)return;destroyed=true;void end('destroyed');registered=null;client=null;for(const [name,fn]of bindings)ctx.eventSource.removeListener(name,fn);bindings.length=0;}
   };
 }

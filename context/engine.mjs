@@ -115,6 +115,7 @@ export function createContextEngine({ context, bridge, settings = () => ({}), re
       if (value > budget.input) throw new Error('完整提示超过预留输入预算，请重新发送以使用更新后的固定提示估算。');
       return true;
     },
+    pause() { round = null; requests.cancel(); },
     finish() { round = null; requests.cancel(); },
   };
   function records() {
@@ -125,7 +126,7 @@ export function createContextEngine({ context, bridge, settings = () => ({}), re
     client,
     available: adapter.available,
     status: () => ({ available: !!adapter.available(), enabled: adapter.store.read().enabled !== false, busy: busy(), pendingSave: adapter.store.status().pending, error: error || compact?.status().error || '', lastRun: copy(lastRun), records: records(), receipts: copy(adapter.store.read().receipts), requests: requests.status() }),
-    async refresh() { if (context().chat.length) await adapter.snapshot({ allowUnregistered: true }); return records(); },
+    async refresh() { if (adapter.available() && !bridge()?.status().session && context().chat.length) await adapter.snapshot({ allowUnregistered: true }); return records(); },
     async setEnabled(value) { assertIdle(); return adapter.store.update(state => { state.enabled = value === true; }); },
     async exclude(id) { assertIdle(); return adapter.store.update(state => { const record = state.compactions.find(row => row.id === id); if (!record) throw new Error('摘要不存在。'); record.status = 'excluded'; }); },
     async include(id) { assertIdle(); await adapter.snapshot(); return adapter.store.update(state => { const record = state.compactions.find(row => row.id === id); if (!record?.sources.every(adapter.validSource)) throw new Error('原文已变化，不能恢复该摘要。'); record.status = 'ready'; }); },
