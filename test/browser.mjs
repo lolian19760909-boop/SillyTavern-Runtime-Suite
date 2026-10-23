@@ -1,4 +1,5 @@
 import { checkMessages } from './messages.browser.mjs';
+import { runMotionChecks } from './motion.browser.mjs';
 const events = new Map(), prompts = new Map(), results = [], errors = [];
 const status = document.getElementById('status'), report = document.getElementById('report'), checkButton = document.getElementById('check');
 const names = ['GENERATION_AFTER_COMMANDS', 'MESSAGE_SENT', 'MESSAGE_RECEIVED', 'WORLDINFO_ENTRIES_LOADED', 'CHAT_COMPLETION_PROMPT_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED', 'CHAT_CHANGED'];
@@ -84,6 +85,8 @@ checkButton.addEventListener('click', async () => {
     const again = await globalThis.TavernVisual.getProject('graphic-web-example@1');
     const finalPlayback = globalThis.TavernVisual.mount(again, document.getElementById('stage')); await finalPlayback.ready; await finalPlayback.trigger('reveal');
     document.querySelectorAll('#tavern-runtime-suite button')[0].click();
+    const motionResult=await runMotionChecks();
+    results.push({name:'连续切页、打断、显示副本隔离与生命周期',pass:motionResult.pass,checks:motionResult.checks});
     output('完整检查通过');
   } catch (failure) { errors.push(failure.stack || failure.message); output('检查失败'); }
 });

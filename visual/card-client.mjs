@@ -1,10 +1,10 @@
 // Same-origin Tavern Helper iframe or ordinary card page.
 // Import this file from the installed extension path; no card-specific globals.
-export function connectCard({ root = document.body, host = window.parent, signal } = {}) {
+export function connectCard({ root = document.body, host = window.parent, signal, motionOptions = {} } = {}) {
   const visual = host.TavernVisual, motion = host.TavernMotion;
   if (!visual || visual.api !== 1 || !motion) throw new Error('请启用 Tavern Runtime Suite 的视觉模块。');
   const sessions = new Set(), controller = new AbortController();
-  const scope = motion.mount(root);
+  const scope = motion.mount(root, motionOptions);
   const view = root.ownerDocument.defaultView;
   async function dispose() {
     if (controller.signal.aborted) return;

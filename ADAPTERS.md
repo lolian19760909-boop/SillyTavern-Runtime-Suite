@@ -42,6 +42,8 @@ Card iframe adapters should use their existing host message bridge to request mo
 
 `window.TavernMotion.api === 1` provides the scoped DOM motion API for page transitions. Mount it on the page's own UI roots and dispose the scope when that root leaves the page.
 
+Version 0.4.0 adds feature-detectable `navigation`, `presence`, `content-transition`, `channels` and `layout` capabilities. See [UI motion](MOTION.md) for synchronous render integration, interruption, lifecycle and examples. Existing API 1 methods remain compatible.
+
 ## Suite lifecycle
 
 `window.TavernRuntimeSuite.status()` reports wanted and active states for context and visual modules. Startup failures remain visible. Pending module loads are released if disabled before completion; shutdown waits for disposal before reuse. Native interception is published as the manifest's global `TavernRuntimeSuite_intercept` function. Old standalone plugins must be disabled before enabling the corresponding suite module.
